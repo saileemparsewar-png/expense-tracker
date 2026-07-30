@@ -1,0 +1,115 @@
+.add-tx-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px 16px;
+}
+
+.add-tx-header h2 {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg);
+  padding: 0;
+  font-size: 14px;
+}
+
+.add-tx-form {
+  padding: 0 20px 32px;
+}
+
+/* Amount input */
+.amount-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rupee-prefix {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.amount-input {
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  border: none !important;
+  border-bottom: 2px solid var(--border) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  padding: 4px 0 !important;
+  flex: 1;
+}
+
+.amount-input:focus {
+  border-bottom-color: var(--primary) !important;
+}
+
+.amount-input::-webkit-inner-spin-button,
+.amount-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+/* Category preview */
+.category-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.category-pill {
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.auto-label {
+  font-size: 11px;
+  color: var(--text-light);
+  font-style: italic;
+}
+
+.optional-label {
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-light);
+  font-size: 11px;
+}
+
+.form-error {
+  color: var(--expense);
+  font-size: 13px;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: var(--expense-light);
+  border-radius: 8px;
+}
+
+.add-tx-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.add-tx-actions .btn {
+  flex: 1;
+  padding: 14px;
+  font-size: 15px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-income {
+  background: var(--income) !important;
+}

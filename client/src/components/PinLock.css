@@ -1,0 +1,121 @@
+.pin-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px;
+}
+
+.pin-inner {
+  text-align: center;
+  width: 100%;
+  max-width: 320px;
+}
+
+.pin-logo {
+  font-size: 52px;
+  margin-bottom: 12px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
+.pin-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.pin-subtitle {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 36px;
+}
+
+/* Dots */
+.pin-dots {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.pin-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.6);
+  background: transparent;
+  transition: all 0.15s;
+}
+
+.pin-dot.filled {
+  background: white;
+  border-color: white;
+  transform: scale(1.1);
+}
+
+.pin-dot.error {
+  border-color: #fca5a5;
+  background: #fca5a5;
+}
+
+.pin-error {
+  color: #fca5a5;
+  font-size: 13px;
+  margin-bottom: 8px;
+  height: 20px;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.pin-dots.shake {
+  animation: shake 0.5s ease-in-out;
+}
+
+/* Keypad */
+.pin-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 24px;
+  max-width: 260px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.pin-key {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.18);
+  color: white;
+  font-size: 22px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  backdrop-filter: blur(4px);
+  font-family: inherit;
+}
+
+.pin-key:active {
+  background: rgba(255,255,255,0.35);
+  transform: scale(0.93);
+}
+
+.pin-key-empty {
+  background: transparent !important;
+  cursor: default;
+}
+
+.pin-key-delete {
+  font-size: 20px;
+  background: rgba(255,255,255,0.1);
+}

@@ -1,0 +1,88 @@
+.user-select {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 24px;
+}
+
+.user-select-inner {
+  text-align: center;
+  width: 100%;
+  max-width: 360px;
+}
+
+.user-select-logo {
+  font-size: 56px;
+  margin-bottom: 16px;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+}
+
+.user-select-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.user-select-subtitle {
+  font-size: 15px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 48px;
+}
+
+.user-select-prompt {
+  font-size: 14px;
+  color: rgba(255,255,255,0.85);
+  font-weight: 500;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.user-cards {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+}
+
+.user-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 24px 28px;
+  border: none;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(10px);
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex: 1;
+  max-width: 140px;
+}
+
+.user-card:active {
+  transform: scale(0.96);
+}
+
+.user-card-sailee:hover, .user-card-sailee:focus {
+  background: rgba(236, 72, 153, 0.35);
+  box-shadow: 0 8px 24px rgba(236,72,153,0.3);
+}
+
+.user-card-ajinkya:hover, .user-card-ajinkya:focus {
+  background: rgba(59, 130, 246, 0.35);
+  box-shadow: 0 8px 24px rgba(59,130,246,0.3);
+}
+
+.user-card-avatar {
+  font-size: 40px;
+}
+
+.user-card-name {
+  font-size: 17px;
+  font-weight: 700;
+}
