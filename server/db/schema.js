@@ -5,8 +5,10 @@ let _db = null;
 async function initDB() {
   if (_db) return _db;
 
+  const url = process.env.TURSO_DB_URL.replace('libsql://', 'https://');
+
   _db = createClient({
-    url: process.env.TURSO_DB_URL,
+    url,
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
 
