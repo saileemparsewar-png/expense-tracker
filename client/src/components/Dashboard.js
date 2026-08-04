@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { getInsights, getSummary } from '../api';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -111,6 +111,7 @@ export default function Dashboard({ transactions, activeUser, onSwitchUser }) {
           { id: 'breakdown', label: 'Breakdown' },
           { id: 'insights', label: 'Insights' },
           { id: 'trend', label: 'Trend' },
+          { id: 'export', label: '📤 Export' },
         ].map(tab => (
           <button
             key={tab.id}
@@ -142,6 +143,9 @@ export default function Dashboard({ transactions, activeUser, onSwitchUser }) {
         )}
         {activeSection === 'trend' && (
           <TrendSection insights={insights} />
+        )}
+        {activeSection === 'export' && (
+          <ExportSection transactions={transactions} insights={insights} />
         )}
       </div>
     </div>
@@ -457,6 +461,133 @@ function TrendSection({ insights }) {
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Export ────────────────────────────────────
+
+function ExportSection({ transactions, insights }) {
+  const [copied, setCopied] = useState(false);
+  const [month, setMonth] = useState('all');
+  const textRef = useRef(null);
+
+  const now = new Date();
+  const currentMonth = now.toISOString().slice(0, 7);
+
+  // Build months list from transactions
+  const monthsAvailable = [...new Set(transactions.map(t => t.date.slice(0, 7)))]
+    .sort((a, b) => b.localeCompare(a));
+
+  const filtered = month === 'all'
+    ? transactions
+    : transactions.filter(t => t.date.startsWith(month));
+
+  const exportData = {
+    exportedAt: new Date().toISOString(),
+    period: month === 'all' ? 'All time' : month,
+    summary: {
+      totalTransactions: filtered.length,
+      totalExpense: filtered.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+      totalIncome: filtered.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0),
+      sailee: {
+        expense: filtered.filter(t => t.user === 'sailee' && t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+        income: filtered.filter(t => t.user === 'sailee' && t.type === 'income').reduce((s, t) => s + t.amount, 0),
+      },
+      ajinkya: {
+        expense: filtered.filter(t => t.user === 'ajinkya' && t.type === 'expense').reduce((s, t) => s + t.amount, 0),
+        income: filtered.filter(t => t.user === 'ajinkya' && t.type === 'income').reduce((s, t) => s + t.amount, 0),
+      },
+    },
+    transactions: filtered.map(t => ({
+      date: t.date,
+      user: t.user,
+      type: t.type,
+      amount: t.amount,
+      description: t.description,
+      category: t.category,
+      note: t.note || '',
+    })),
+    insights: insights ? {
+      balance: insights.balance,
+      suggestions: insights.suggestions,
+      topCategories: insights.insights?.topHouseholdCategories,
+      trend: insights.trend,
+    } : null,
+  };
+
+  const jsonString = JSON.stringify(exportData, null, 2);
+
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(jsonString);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 3000);
+    } catch {
+      // Fallback for older browsers
+      if (textRef.current) {
+        textRef.current.select();
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 3000);
+      }
+    }
+  }
+
+  return (
+    <div className="section-content">
+      <div className="card">
+        <div className="card-title">📤 Export Data</div>
+        <p className="export-desc">
+          Copy this and paste it to Kiro (your AI) for a full monthly review, spending analysis, or any financial insights.
+        </p>
+
+        {/* Month selector */}
+        <div className="form-group" style={{ marginTop: 12 }}>
+          <label className="form-label">Period</label>
+          <select className="form-input" value={month} onChange={e => setMonth(e.target.value)}>
+            <option value="all">All time</option>
+            {monthsAvailable.map(m => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Stats preview */}
+        <div className="export-stats">
+          <div className="export-stat">
+            <span>{filtered.length}</span>
+            <small>transactions</small>
+          </div>
+          <div className="export-stat">
+            <span>₹{filtered.filter(t=>t.type==='expense').reduce((s,t)=>s+t.amount,0).toLocaleString('en-IN',{maximumFractionDigits:0})}</span>
+            <small>total spent</small>
+          </div>
+          <div className="export-stat">
+            <span>₹{filtered.filter(t=>t.type==='income').reduce((s,t)=>s+t.amount,0).toLocaleString('en-IN',{maximumFractionDigits:0})}</span>
+            <small>total income</small>
+          </div>
+        </div>
+
+        {/* Copy button */}
+        <button className={`btn export-copy-btn ${copied ? 'copied' : ''}`} onClick={handleCopy}>
+          {copied ? '✅ Copied! Paste it to Kiro' : '📋 Copy to clipboard'}
+        </button>
+
+        {/* Text area fallback */}
+        <textarea
+          ref={textRef}
+          className="export-textarea"
+          value={jsonString}
+          readOnly
+          rows={6}
+          onFocus={e => e.target.select()}
+        />
+
+        <p className="export-hint">
+          💡 Tip: tap the text area to select all, then copy manually if the button doesn't work.
+        </p>
       </div>
     </div>
   );

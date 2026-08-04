@@ -19,9 +19,6 @@ app.use(express.json());
 // Serve React build
 app.use(express.static(path.join(__dirname, '../client/build')));
 
-// ─────────────────────────────────────────────
-// Boot: init DB then start server
-// ─────────────────────────────────────────────
 let db;
 
 async function start() {
@@ -31,27 +28,28 @@ async function start() {
   // TRANSACTIONS
   // ─────────────────────────────────────────────
 
-  app.get('/api/transactions', (req, res) => {
+  app.get('/api/transactions', async (req, res) => {
     const { user, month, type, limit } = req.query;
     let sql = 'SELECT * FROM transactions WHERE 1=1';
     const params = [];
 
-    if (user)  { sql += ' AND user = ?';       params.push(user); }
-    if (month) { sql += ' AND date LIKE ?';    params.push(`${month}%`); }
-    if (type)  { sql += ' AND type = ?';       params.push(type); }
+    if (user)  { sql += ' AND user = ?';    params.push(user); }
+    if (month) { sql += ' AND date LIKE ?'; params.push(`${month}%`); }
+    if (type)  { sql += ' AND type = ?';    params.push(type); }
 
     sql += ' ORDER BY date DESC, created_at DESC';
     if (limit) { sql += ' LIMIT ?'; params.push(parseInt(limit)); }
 
     try {
-      const rows = queryAll(db, sql, params);
+      const rows = await queryAll(db, sql, params);
       res.json(rows);
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.post('/api/transactions', (req, res) => {
+  app.post('/api/transactions', async (req, res) => {
     const { user, type, amount, description, note, date, category: manualCategory } = req.body;
 
     if (!user || !type || !amount || !description) {
@@ -63,30 +61,31 @@ async function start() {
     const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
 
     try {
-      const id = run(
+      const id = await run(
         db,
         'INSERT INTO transactions (user, type, amount, description, category, note, date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [user, type, parseFloat(amount), description, category, note || '', txDate, createdAt]
       );
-      const newTx = queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [id]);
+      const newTx = await queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [id]);
       io.emit('transaction:new', newTx);
       res.status(201).json(newTx);
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.put('/api/transactions/:id', (req, res) => {
+  app.put('/api/transactions/:id', async (req, res) => {
     const { id } = req.params;
     const { amount, description, category, note, date, type } = req.body;
 
-    const existing = queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [parseInt(id)]);
+    const existing = await queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [parseInt(id)]);
     if (!existing) return res.status(404).json({ error: 'Transaction not found.' });
 
     const updatedCategory = category || categorize(description || existing.description, type || existing.type);
 
     try {
-      run(
+      await run(
         db,
         'UPDATE transactions SET amount=?, description=?, category=?, note=?, date=?, type=? WHERE id=?',
         [
@@ -99,20 +98,21 @@ async function start() {
           parseInt(id),
         ]
       );
-      const updated = queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [parseInt(id)]);
+      const updated = await queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [parseInt(id)]);
       io.emit('transaction:updated', updated);
       res.json(updated);
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.delete('/api/transactions/:id', (req, res) => {
+  app.delete('/api/transactions/:id', async (req, res) => {
     const { id } = req.params;
-    const existing = queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [parseInt(id)]);
+    const existing = await queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [parseInt(id)]);
     if (!existing) return res.status(404).json({ error: 'Transaction not found.' });
 
-    run(db, 'DELETE FROM transactions WHERE id = ?', [parseInt(id)]);
+    await run(db, 'DELETE FROM transactions WHERE id = ?', [parseInt(id)]);
     io.emit('transaction:deleted', { id: parseInt(id) });
     res.json({ success: true });
   });
@@ -132,22 +132,23 @@ async function start() {
   // ─────────────────────────────────────────────
   // INSIGHTS & SUMMARY
   // ─────────────────────────────────────────────
-  app.get('/api/insights', (req, res) => {
+  app.get('/api/insights', async (req, res) => {
     try {
-      const all = queryAll(db, 'SELECT * FROM transactions ORDER BY date ASC');
+      const all = await queryAll(db, 'SELECT * FROM transactions ORDER BY date ASC');
       const insights = generateInsights(all);
       res.json(insights);
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: err.message });
     }
   });
 
-  app.get('/api/summary', (req, res) => {
+  app.get('/api/summary', async (req, res) => {
     const { month } = req.query;
     const m = month || new Date().toISOString().slice(0, 7);
 
     try {
-      const transactions = queryAll(db, 'SELECT * FROM transactions WHERE date LIKE ?', [`${m}%`]);
+      const transactions = await queryAll(db, 'SELECT * FROM transactions WHERE date LIKE ?', [`${m}%`]);
       const expenses = transactions.filter(t => t.type === 'expense');
       const income = transactions.filter(t => t.type === 'income');
 
@@ -175,6 +176,7 @@ async function start() {
         transactionCount: transactions.length,
       });
     } catch (err) {
+      console.error(err);
       res.status(500).json({ error: err.message });
     }
   });
@@ -191,20 +193,17 @@ async function start() {
   app.get('*', (req, res) => {
     const buildPath = path.join(__dirname, '../client/build/index.html');
     res.sendFile(buildPath, (err) => {
-      if (err) res.status(200).json({ message: 'Expense Tracker API running. Build the React client to serve the UI.' });
+      if (err) res.status(200).json({ message: 'Expense Tracker API running.' });
     });
   });
 
   const PORT = process.env.PORT || 3001;
   server.listen(PORT, '0.0.0.0', () => {
-    console.log(`\n✅ Expense Tracker server running on port ${PORT}`);
-    console.log(`   Local:   http://localhost:${PORT}`);
-    console.log(`   Network: http://<your-local-ip>:${PORT}`);
-    console.log('\n   Run: ipconfig   to find your local IP address\n');
+    console.log(`\n✅ Expense Tracker running on port ${PORT}\n`);
   });
 }
 
 start().catch(err => {
-  console.error('Failed to start server:', err);
+  console.error('Failed to start:', err);
   process.exit(1);
 });

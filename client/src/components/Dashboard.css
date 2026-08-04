@@ -498,3 +498,82 @@
 
 .trend-row span { text-align: right; }
 .trend-row span:first-child { text-align: left; color: var(--text-muted); }
+
+/* Export */
+.export-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.export-stats {
+  display: flex;
+  gap: 8px;
+  margin: 12px 0;
+}
+
+.export-stat {
+  flex: 1;
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 10px 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.export-stat span {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.export-stat small {
+  font-size: 10px;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.export-copy-btn {
+  width: 100%;
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  font-size: 15px;
+  font-weight: 600;
+  background: var(--primary);
+  color: white;
+  border: none;
+  margin-bottom: 12px;
+  transition: all 0.2s;
+}
+
+.export-copy-btn.copied {
+  background: var(--income);
+}
+
+.export-copy-btn:active {
+  transform: scale(0.98);
+}
+
+.export-textarea {
+  width: 100%;
+  font-family: monospace;
+  font-size: 11px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  color: var(--text-muted);
+  resize: none;
+  line-height: 1.4;
+}
+
+.export-hint {
+  font-size: 12px;
+  color: var(--text-light);
+  margin-top: 8px;
+  line-height: 1.5;
+}
