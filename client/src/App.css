@@ -13,7 +13,7 @@
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 80px;
+  padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
 /* Sync dot */
