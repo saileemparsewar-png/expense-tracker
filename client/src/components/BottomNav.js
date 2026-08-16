@@ -1,52 +1,48 @@
 import React from 'react';
 import './BottomNav.css';
 
+const TABS = [
+  { id: 'home',         icon: '🏠', label: 'Home' },
+  { id: 'transactions', icon: '📋', label: 'History' },
+  { id: 'goals',        icon: '🎯', label: 'Goals' },
+  { id: 'insights',     icon: '💡', label: 'Insights' },
+  { id: 'chat',         icon: '🤖', label: 'Ask AI' },
+  { id: 'import',       icon: '📄', label: 'Import' },
+];
+
 export default function BottomNav({ activeTab, onTabChange, onAdd, activeUser }) {
   const userColor = activeUser === 'sailee' ? '#ec4899' : '#3b82f6';
 
   return (
     <div className="bottom-nav">
-      <button
-        className={`nav-btn ${activeTab === 'home' ? 'nav-active' : ''}`}
-        onClick={() => onTabChange('home')}
-      >
-        <span className="nav-icon">🏠</span>
-        <span className="nav-label">Home</span>
-      </button>
+      <div className="nav-scroll">
+        {TABS.slice(0, 2).map(tab => (
+          <NavBtn key={tab.id} tab={tab} active={activeTab === tab.id} onClick={() => onTabChange(tab.id)} />
+        ))}
 
-      <button
-        className={`nav-btn ${activeTab === 'transactions' ? 'nav-active' : ''}`}
-        onClick={() => onTabChange('transactions')}
-      >
-        <span className="nav-icon">📋</span>
-        <span className="nav-label">History</span>
-      </button>
+        {/* FAB */}
+        <button
+          className="nav-fab"
+          style={{ background: userColor }}
+          onClick={onAdd}
+          aria-label="Add transaction"
+        >
+          <span className="nav-fab-icon">+</span>
+        </button>
 
-      {/* FAB */}
-      <button
-        className="nav-fab"
-        style={{ background: userColor }}
-        onClick={onAdd}
-        aria-label="Add transaction"
-      >
-        <span className="nav-fab-icon">+</span>
-      </button>
-
-      <button
-        className={`nav-btn ${activeTab === 'goals' ? 'nav-active' : ''}`}
-        onClick={() => onTabChange('goals')}
-      >
-        <span className="nav-icon">🎯</span>
-        <span className="nav-label">Goals</span>
-      </button>
-
-      <button
-        className={`nav-btn ${activeTab === 'insights' ? 'nav-active' : ''}`}
-        onClick={() => onTabChange('insights')}
-      >
-        <span className="nav-icon">💡</span>
-        <span className="nav-label">Insights</span>
-      </button>
+        {TABS.slice(2).map(tab => (
+          <NavBtn key={tab.id} tab={tab} active={activeTab === tab.id} onClick={() => onTabChange(tab.id)} />
+        ))}
+      </div>
     </div>
+  );
+}
+
+function NavBtn({ tab, active, onClick }) {
+  return (
+    <button className={`nav-btn ${active ? 'nav-active' : ''}`} onClick={onClick}>
+      <span className="nav-icon">{tab.icon}</span>
+      <span className="nav-label">{tab.label}</span>
+    </button>
   );
 }

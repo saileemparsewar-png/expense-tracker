@@ -8,6 +8,11 @@ const { categorize, getCategories } = require('./categorizer');
 const { generateInsights } = require('./insights');
 const { analysePatterns, checkTransactionAgainstGoals } = require('./patterns');
 const { generateWeeklyRecap } = require('./recap');
+const { chat, extractTransactionsFromPDF } = require('./ai');
+const multer = require('multer');
+const pdfParse = require('pdf-parse');
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const app = express();
 const server = http.createServer(app);
@@ -345,6 +350,144 @@ async function start() {
       const recap = generateWeeklyRecap(all, user);
       res.json(recap);
     } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // AI CHAT
+  // ─────────────────────────────────────────────
+  app.post('/api/chat', async (req, res) => {
+    const { messages, user } = req.body;
+    if (!messages || !user) return res.status(400).json({ error: 'messages and user required' });
+
+    try {
+      const month = new Date().toISOString().slice(0, 7);
+      const [allTxs, summary, goalsProgress, patterns] = await Promise.all([
+        queryAll(db, 'SELECT * FROM transactions ORDER BY date DESC LIMIT 50'),
+        (async () => {
+          const txs = await queryAll(db, 'SELECT * FROM transactions WHERE date LIKE ?', [`${month}%`]);
+          const expenses = txs.filter(t => t.type === 'expense');
+          const income = txs.filter(t => t.type === 'income');
+          const catMap = {};
+          for (const t of expenses) catMap[t.category] = (catMap[t.category] || 0) + t.amount;
+          return {
+            totalExpense: expenses.reduce((s, t) => s + t.amount, 0),
+            totalIncome: income.reduce((s, t) => s + t.amount, 0),
+            sailee_or_user_expense: expenses.filter(t => t.user === user).reduce((s, t) => s + t.amount, 0),
+            sailee_or_user_income: income.filter(t => t.user === user).reduce((s, t) => s + t.amount, 0),
+            categoryBreakdown: Object.entries(catMap).sort((a, b) => b[1] - a[1]).map(([category, amount]) => ({ category, amount })),
+          };
+        })(),
+        (async () => {
+          const goals = await queryAll(db, 'SELECT * FROM goals WHERE owner = ? OR scope = ?', [user, 'household']);
+          const txs = await queryAll(db, 'SELECT * FROM transactions WHERE date LIKE ?', [`${month}%`]);
+          return goals.map(goal => {
+            const spent = txs.filter(t => t.type === 'expense' && (goal.scope === 'household' || t.user === user) && (goal.category ? t.category === goal.category : true)).reduce((s, t) => s + t.amount, 0);
+            const pct = goal.target_amount > 0 ? Math.round((spent / goal.target_amount) * 100) : 0;
+            return { ...goal, spent, percentage: pct, status: pct >= 100 ? 'exceeded' : pct >= 80 ? 'warning' : 'ok' };
+          });
+        })(),
+        (async () => { try { return analysePatterns(await queryAll(db, 'SELECT * FROM transactions ORDER BY date ASC'), user); } catch { return []; } })(),
+      ]);
+
+      const insights = generateInsights(await queryAll(db, 'SELECT * FROM transactions ORDER BY date ASC'));
+
+      const reply = await chat(messages, {
+        user,
+        summary,
+        goals: goalsProgress,
+        patterns,
+        recentTxs: allTxs,
+        insights,
+      });
+
+      res.json({ reply });
+    } catch (err) {
+      console.error('Chat error:', err);
+      res.status(500).json({ error: 'AI service unavailable. Please try again.' });
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // PDF IMPORT
+  // ─────────────────────────────────────────────
+  app.post('/api/import/pdf', upload.single('pdf'), async (req, res) => {
+    const { user } = req.body;
+    if (!req.file) return res.status(400).json({ error: 'No PDF file uploaded.' });
+    if (!user) return res.status(400).json({ error: 'user required.' });
+
+    try {
+      // Parse PDF to text
+      const pdfData = await pdfParse(req.file.buffer);
+      const text = pdfData.text;
+
+      if (!text || text.trim().length < 50) {
+        return res.status(400).json({ error: 'Could not extract text from PDF. Make sure it is a text-based PDF, not a scanned image.' });
+      }
+
+      // Extract transactions using AI
+      const extracted = await extractTransactionsFromPDF(text, user);
+
+      if (extracted.length === 0) {
+        return res.status(400).json({ error: 'No transactions found in the PDF. Make sure this is a bank statement.' });
+      }
+
+      // Duplicate detection — check against existing transactions
+      const existing = await queryAll(db, 'SELECT * FROM transactions WHERE user = ?', [user]);
+
+      const withDuplicateFlags = extracted.map(tx => {
+        const possible = existing.find(e => {
+          const dateDiff = Math.abs(new Date(e.date) - new Date(tx.date)) / (1000 * 60 * 60 * 24);
+          const amountMatch = Math.abs(e.amount - tx.amount) <= 10;
+          const descMatch = e.description.toLowerCase().includes(tx.description.toLowerCase().slice(0, 6)) ||
+            tx.description.toLowerCase().includes(e.description.toLowerCase().slice(0, 6));
+          return dateDiff <= 1 && amountMatch && descMatch;
+        });
+
+        return {
+          ...tx,
+          isDuplicate: !!possible,
+          duplicateOf: possible ? { id: possible.id, description: possible.description, date: possible.date } : null,
+          selected: !possible, // auto-deselect duplicates
+        };
+      });
+
+      res.json({
+        transactions: withDuplicateFlags,
+        total: extracted.length,
+        duplicates: withDuplicateFlags.filter(t => t.isDuplicate).length,
+        new: withDuplicateFlags.filter(t => !t.isDuplicate).length,
+      });
+    } catch (err) {
+      console.error('PDF import error:', err);
+      res.status(500).json({ error: err.message || 'Failed to process PDF.' });
+    }
+  });
+
+  // Confirm and save selected transactions from PDF import
+  app.post('/api/import/confirm', async (req, res) => {
+    const { transactions, user } = req.body;
+    if (!transactions || !user) return res.status(400).json({ error: 'transactions and user required.' });
+
+    try {
+      const { categorize } = require('./categorizer');
+      const saved = [];
+      for (const tx of transactions) {
+        const category = categorize(tx.description, tx.type);
+        const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+        const id = await run(
+          db,
+          'INSERT INTO transactions (user, type, amount, description, category, note, date, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [user, tx.type, parseFloat(tx.amount), tx.description, category, 'Imported from bank statement', tx.date, createdAt]
+        );
+        const newTx = await queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [id]);
+        saved.push(newTx);
+        io.emit('transaction:new', newTx);
+      }
+      res.json({ saved: saved.length, transactions: saved });
+    } catch (err) {
+      console.error('Import confirm error:', err);
       res.status(500).json({ error: err.message });
     }
   });

@@ -8,6 +8,8 @@ import Dashboard from './components/Dashboard';
 import Goals from './components/Goals';
 import Nudge from './components/Nudge';
 import IntelligenceScreen from './components/IntelligenceScreen';
+import Chatbot from './components/Chatbot';
+import PdfImport from './components/PdfImport';
 import BottomNav from './components/BottomNav';
 import PinLock from './components/PinLock';
 import './App.css';
@@ -49,7 +51,6 @@ export default function App() {
     socket.on('disconnect', () => setConnected(false));
 
     socket.on('transaction:new', (tx) => {
-      // Show nudges if they belong to this user
       if (tx.nudges && tx.nudges.length > 0 && tx.user === activeUser) {
         setNudges(tx.nudges);
       }
@@ -98,7 +99,6 @@ export default function App() {
     <div className="app">
       <div className={`sync-dot ${connected ? 'connected' : 'disconnected'}`} />
 
-      {/* Nudge alerts */}
       {nudges.length > 0 && (
         <Nudge nudges={nudges} onDismiss={() => setNudges([])} />
       )}
@@ -124,6 +124,12 @@ export default function App() {
         )}
         {activeTab === 'insights' && (
           <IntelligenceScreen activeUser={activeUser} transactions={transactions} />
+        )}
+        {activeTab === 'chat' && (
+          <Chatbot activeUser={activeUser} />
+        )}
+        {activeTab === 'import' && (
+          <PdfImport activeUser={activeUser} onImported={loadTransactions} />
         )}
       </div>
 
