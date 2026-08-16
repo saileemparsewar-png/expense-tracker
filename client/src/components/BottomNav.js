@@ -14,7 +14,15 @@ export default function BottomNav({ activeTab, onTabChange, onAdd, activeUser })
         <span className="nav-label">Home</span>
       </button>
 
-      {/* FAB — Add transaction */}
+      <button
+        className={`nav-btn ${activeTab === 'transactions' ? 'nav-active' : ''}`}
+        onClick={() => onTabChange('transactions')}
+      >
+        <span className="nav-icon">📋</span>
+        <span className="nav-label">History</span>
+      </button>
+
+      {/* FAB */}
       <button
         className="nav-fab"
         style={{ background: userColor }}
@@ -25,11 +33,19 @@ export default function BottomNav({ activeTab, onTabChange, onAdd, activeUser })
       </button>
 
       <button
-        className={`nav-btn ${activeTab === 'transactions' ? 'nav-active' : ''}`}
-        onClick={() => onTabChange('transactions')}
+        className={`nav-btn ${activeTab === 'goals' ? 'nav-active' : ''}`}
+        onClick={() => onTabChange('goals')}
       >
-        <span className="nav-icon">📋</span>
-        <span className="nav-label">Transactions</span>
+        <span className="nav-icon">🎯</span>
+        <span className="nav-label">Goals</span>
+      </button>
+
+      <button
+        className={`nav-btn ${activeTab === 'insights' ? 'nav-active' : ''}`}
+        onClick={() => onTabChange('insights')}
+      >
+        <span className="nav-icon">💡</span>
+        <span className="nav-label">Insights</span>
       </button>
     </div>
   );

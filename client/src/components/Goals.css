@@ -1,0 +1,185 @@
+.goals-page {
+  padding: 16px;
+}
+
+.goals-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.goals-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.goals-month {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.add-goal-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+
+.goals-loading {
+  text-align: center;
+  padding: 48px;
+  color: var(--text-muted);
+}
+
+.goals-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Goal card */
+.goal-card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.goal-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.goal-info {
+  flex: 1;
+}
+
+.goal-label {
+  font-size: 15px;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.goal-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.tag-household {
+  background: #f3e8ff;
+  color: #7c3aed;
+}
+
+.goal-period {
+  font-size: 11px;
+  color: var(--text-light);
+  background: var(--bg);
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: capitalize;
+}
+
+.goal-delete-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Progress bar */
+.goal-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.goal-bar-track {
+  flex: 1;
+  height: 10px;
+  background: var(--bg);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.6s ease;
+}
+
+.goal-pct {
+  font-size: 12px;
+  font-weight: 700;
+  width: 36px;
+  text-align: right;
+}
+
+/* Amounts */
+.goal-amounts {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.goal-status {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.goal-remaining {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* Goal type grid */
+.goal-type-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.goal-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+}
+
+.goal-type-btn.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+}
+
+.goal-type-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.goal-type-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}

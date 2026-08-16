@@ -4,7 +4,7 @@ import './AddTransaction.css';
 
 const DEBOUNCE_MS = 400;
 
-export default function AddTransaction({ activeUser, editingTx, onClose }) {
+export default function AddTransaction({ activeUser, editingTx, onClose, onAdded }) {
   const [type, setType] = useState(editingTx?.type || 'expense');
   const [amount, setAmount] = useState(editingTx ? String(editingTx.amount) : '');
   const [description, setDescription] = useState(editingTx?.description || '');
@@ -59,10 +59,14 @@ export default function AddTransaction({ activeUser, editingTx, onClose }) {
       };
       if (editingTx) {
         await updateTransaction(editingTx.id, data);
+        onClose();
       } else {
-        await addTransaction(data);
+        const result = await addTransaction(data);
+        if (result.nudges && result.nudges.length > 0) {
+          onAdded?.(result.nudges);
+        }
+        onClose();
       }
-      onClose();
     } catch (err) {
       setError('Something went wrong. Please try again.');
       setSaving(false);

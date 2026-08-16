@@ -6,6 +6,8 @@ const path = require('path');
 const { initDB, queryAll, queryOne, run } = require('./db/schema');
 const { categorize, getCategories } = require('./categorizer');
 const { generateInsights } = require('./insights');
+const { analysePatterns, checkTransactionAgainstGoals } = require('./patterns');
+const { generateWeeklyRecap } = require('./recap');
 
 const app = express();
 const server = http.createServer(app);
@@ -67,8 +69,14 @@ async function start() {
         [user, type, parseFloat(amount), description, category, note || '', txDate, createdAt]
       );
       const newTx = await queryOne(db, 'SELECT * FROM transactions WHERE id = ?', [id]);
-      io.emit('transaction:new', newTx);
-      res.status(201).json(newTx);
+
+      // Check against goals and generate nudges
+      const allTxs = await queryAll(db, 'SELECT * FROM transactions');
+      const goals = await queryAll(db, 'SELECT * FROM goals');
+      const nudges = checkTransactionAgainstGoals(newTx, allTxs, goals);
+
+      io.emit('transaction:new', { ...newTx, nudges });
+      res.status(201).json({ ...newTx, nudges });
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: err.message });
@@ -177,6 +185,166 @@ async function start() {
       });
     } catch (err) {
       console.error(err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // GOALS
+  // ─────────────────────────────────────────────
+
+  // Get all goals (optionally filtered by user)
+  app.get('/api/goals', async (req, res) => {
+    const { user } = req.query;
+    try {
+      let sql = 'SELECT * FROM goals WHERE 1=1';
+      const params = [];
+      if (user) {
+        sql += ' AND (owner = ? OR scope = ?)';
+        params.push(user, 'household');
+      }
+      sql += ' ORDER BY created_at DESC';
+      const goals = await queryAll(db, sql, params);
+      res.json(goals);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Add a goal
+  app.post('/api/goals', async (req, res) => {
+    const { owner, scope, type, category, target_amount, period, label } = req.body;
+    if (!owner || !type || !target_amount) {
+      return res.status(400).json({ error: 'owner, type, target_amount required.' });
+    }
+    const createdAt = new Date().toISOString().replace('T', ' ').slice(0, 19);
+    try {
+      const id = await run(
+        db,
+        'INSERT INTO goals (owner, scope, type, category, target_amount, period, label, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [owner, scope || 'personal', type, category || null, parseFloat(target_amount), period || 'monthly', label || null, createdAt]
+      );
+      const goal = await queryOne(db, 'SELECT * FROM goals WHERE id = ?', [id]);
+      io.emit('goal:new', goal);
+      res.status(201).json(goal);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Update a goal
+  app.put('/api/goals/:id', async (req, res) => {
+    const { id } = req.params;
+    const { target_amount, label, scope, period } = req.body;
+    const existing = await queryOne(db, 'SELECT * FROM goals WHERE id = ?', [parseInt(id)]);
+    if (!existing) return res.status(404).json({ error: 'Goal not found.' });
+    try {
+      await run(
+        db,
+        'UPDATE goals SET target_amount=?, label=?, scope=?, period=? WHERE id=?',
+        [target_amount ?? existing.target_amount, label ?? existing.label, scope ?? existing.scope, period ?? existing.period, parseInt(id)]
+      );
+      const updated = await queryOne(db, 'SELECT * FROM goals WHERE id = ?', [parseInt(id)]);
+      io.emit('goal:updated', updated);
+      res.json(updated);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Delete a goal
+  app.delete('/api/goals/:id', async (req, res) => {
+    const { id } = req.params;
+    await run(db, 'DELETE FROM goals WHERE id = ?', [parseInt(id)]);
+    io.emit('goal:deleted', { id: parseInt(id) });
+    res.json({ success: true });
+  });
+
+  // Goal progress — how much spent vs target this month
+  app.get('/api/goals/progress', async (req, res) => {
+    const { user } = req.query;
+    const month = new Date().toISOString().slice(0, 7);
+    try {
+      let sql = 'SELECT * FROM goals WHERE 1=1';
+      const params = [];
+      if (user) { sql += ' AND (owner = ? OR scope = ?)'; params.push(user, 'household'); }
+      const goals = await queryAll(db, sql, params);
+      const allTxs = await queryAll(db, 'SELECT * FROM transactions WHERE date LIKE ?', [`${month}%`]);
+
+      const progress = goals.map(goal => {
+        let spent = 0;
+        if (goal.type === 'category_limit') {
+          spent = allTxs
+            .filter(t =>
+              t.type === 'expense' &&
+              t.category === goal.category &&
+              (goal.scope === 'household' || t.user === goal.owner)
+            )
+            .reduce((s, t) => s + t.amount, 0);
+        } else if (goal.type === 'total_limit') {
+          spent = allTxs
+            .filter(t =>
+              t.type === 'expense' &&
+              (goal.scope === 'household' || t.user === goal.owner)
+            )
+            .reduce((s, t) => s + t.amount, 0);
+        } else if (goal.type === 'savings') {
+          const income = allTxs
+            .filter(t => t.type === 'income' && (goal.scope === 'household' || t.user === goal.owner))
+            .reduce((s, t) => s + t.amount, 0);
+          const expense = allTxs
+            .filter(t => t.type === 'expense' && (goal.scope === 'household' || t.user === goal.owner))
+            .reduce((s, t) => s + t.amount, 0);
+          spent = income - expense; // for savings, "spent" is actually "saved"
+        }
+
+        const pct = goal.target_amount > 0
+          ? Math.min((spent / goal.target_amount) * 100, 999)
+          : 0;
+
+        return {
+          ...goal,
+          spent,
+          remaining: goal.type === 'savings' ? goal.target_amount - spent : Math.max(goal.target_amount - spent, 0),
+          percentage: Math.round(pct),
+          status: goal.type === 'savings'
+            ? (spent >= goal.target_amount ? 'achieved' : 'in_progress')
+            : (pct >= 100 ? 'exceeded' : pct >= 80 ? 'warning' : 'ok'),
+        };
+      });
+
+      res.json(progress);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // PATTERNS
+  // ─────────────────────────────────────────────
+  app.get('/api/patterns', async (req, res) => {
+    const { user } = req.query;
+    if (!user) return res.status(400).json({ error: 'user required' });
+    try {
+      const all = await queryAll(db, 'SELECT * FROM transactions ORDER BY date ASC');
+      const patterns = analysePatterns(all, user);
+      res.json(patterns);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ─────────────────────────────────────────────
+  // WEEKLY RECAP
+  // ─────────────────────────────────────────────
+  app.get('/api/recap', async (req, res) => {
+    const { user } = req.query;
+    if (!user) return res.status(400).json({ error: 'user required' });
+    try {
+      const all = await queryAll(db, 'SELECT * FROM transactions ORDER BY date ASC');
+      const recap = generateWeeklyRecap(all, user);
+      res.json(recap);
+    } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });

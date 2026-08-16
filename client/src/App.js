@@ -5,11 +5,13 @@ import UserSelect from './components/UserSelect';
 import AddTransaction from './components/AddTransaction';
 import TransactionList from './components/TransactionList';
 import Dashboard from './components/Dashboard';
+import Goals from './components/Goals';
+import Nudge from './components/Nudge';
+import IntelligenceScreen from './components/IntelligenceScreen';
 import BottomNav from './components/BottomNav';
 import PinLock from './components/PinLock';
 import './App.css';
 
-// PIN unlock lasts for 8 hours per device
 const PIN_TTL_MS = 8 * 60 * 60 * 1000;
 
 function isPinUnlocked() {
@@ -26,13 +28,12 @@ export default function App() {
   const [showAdd, setShowAdd] = useState(false);
   const [connected, setConnected] = useState(false);
   const [editingTx, setEditingTx] = useState(null);
+  const [nudges, setNudges] = useState([]);
 
-  // Persist selected user
   useEffect(() => {
     if (activeUser) localStorage.setItem('activeUser', activeUser);
   }, [activeUser]);
 
-  // Load transactions
   useEffect(() => {
     if (!activeUser) return;
     loadTransactions();
@@ -43,13 +44,20 @@ export default function App() {
     setTransactions(data);
   }
 
-  // Real-time socket sync
   useEffect(() => {
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
 
     socket.on('transaction:new', (tx) => {
-      setTransactions(prev => [tx, ...prev]);
+      // Show nudges if they belong to this user
+      if (tx.nudges && tx.nudges.length > 0 && tx.user === activeUser) {
+        setNudges(tx.nudges);
+      }
+      const { nudges: _, ...cleanTx } = tx;
+      setTransactions(prev => {
+        if (prev.find(t => t.id === cleanTx.id)) return prev;
+        return [cleanTx, ...prev];
+      });
     });
 
     socket.on('transaction:updated', (tx) => {
@@ -67,11 +75,10 @@ export default function App() {
       socket.off('transaction:updated');
       socket.off('transaction:deleted');
     };
-  }, []);
+  }, [activeUser]);
 
   async function handleDelete(id) {
     await deleteTransaction(id);
-    // socket will update state
   }
 
   function handleEdit(tx) {
@@ -84,20 +91,18 @@ export default function App() {
     setUnlocked(true);
   }
 
-  if (!unlocked) {
-    return <PinLock onUnlock={handleUnlock} />;
-  }
-
-  if (!activeUser) {
-    return <UserSelect onSelect={setActiveUser} />;
-  }
+  if (!unlocked) return <PinLock onUnlock={handleUnlock} />;
+  if (!activeUser) return <UserSelect onSelect={setActiveUser} />;
 
   return (
     <div className="app">
-      {/* Connection indicator */}
-      <div className={`sync-dot ${connected ? 'connected' : 'disconnected'}`} title={connected ? 'Synced' : 'Offline'} />
+      <div className={`sync-dot ${connected ? 'connected' : 'disconnected'}`} />
 
-      {/* Main content */}
+      {/* Nudge alerts */}
+      {nudges.length > 0 && (
+        <Nudge nudges={nudges} onDismiss={() => setNudges([])} />
+      )}
+
       <div className="app-content">
         {activeTab === 'home' && (
           <Dashboard
@@ -114,9 +119,14 @@ export default function App() {
             onEdit={handleEdit}
           />
         )}
+        {activeTab === 'goals' && (
+          <Goals activeUser={activeUser} />
+        )}
+        {activeTab === 'insights' && (
+          <IntelligenceScreen activeUser={activeUser} transactions={transactions} />
+        )}
       </div>
 
-      {/* Bottom navigation */}
       <BottomNav
         activeTab={activeTab}
         onTabChange={setActiveTab}
@@ -124,12 +134,14 @@ export default function App() {
         activeUser={activeUser}
       />
 
-      {/* Add / Edit modal */}
       {showAdd && (
         <AddTransaction
           activeUser={activeUser}
           editingTx={editingTx}
           onClose={() => { setShowAdd(false); setEditingTx(null); }}
+          onAdded={(nudgesFromTx) => {
+            if (nudgesFromTx && nudgesFromTx.length > 0) setNudges(nudgesFromTx);
+          }}
         />
       )}
     </div>

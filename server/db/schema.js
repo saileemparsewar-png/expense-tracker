@@ -26,13 +26,16 @@ async function initDB() {
       created_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS budgets (
+    CREATE TABLE IF NOT EXISTS goals (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      user TEXT NOT NULL,
-      category TEXT NOT NULL,
-      monthly_limit REAL NOT NULL,
-      month TEXT NOT NULL,
-      UNIQUE(user, category, month)
+      owner TEXT NOT NULL,
+      scope TEXT NOT NULL DEFAULT 'personal',
+      type TEXT NOT NULL,
+      category TEXT,
+      target_amount REAL NOT NULL,
+      period TEXT NOT NULL DEFAULT 'monthly',
+      label TEXT,
+      created_at TEXT NOT NULL
     );
   `);
 
